@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import '../glow.css';
 
 const WIDTH = 500;
 const HEIGHT = 500;
@@ -217,6 +218,7 @@ const ParabolaGraphing = () => {
 	const [historyIndex, setHistoryIndex] = useState(0); // how many points are "current" (undo/redo is point-by-point)
 	const [parabolaProgress, setParabolaProgress] = useState(0); // 0..1 for draw animation
 	const [animatingParabolaIndex, setAnimatingParabolaIndex] = useState(null); // which parabola (0-based) is animating, or null
+	const [showGlow, setShowGlow] = useState(true);
 	const containerRef = useRef(null);
 
 	// Current points = those before historyIndex (undo/redo moves this boundary)
@@ -324,12 +326,6 @@ const ParabolaGraphing = () => {
 	const canUndo = historyIndex > 0;
 	const canRedo = historyIndex < pointsHistory.length;
 	const canReset = pointsHistory.length > 0;
-	const buttonStyle = (enabled) => ({
-		padding: '4px 8px',
-		fontSize: 12,
-		cursor: enabled ? 'pointer' : 'default',
-		opacity: enabled ? 1 : 0.5,
-	});
 
 	// Ghost parabola: when we have an odd number of points (vertex placed, no second yet), preview from hover
 	const vertexForGhost = historyIndex > 0 && historyIndex % 2 === 1 ? currentPoints[historyIndex - 1] : null;
@@ -345,7 +341,8 @@ const ParabolaGraphing = () => {
 	}
 
 	// Axis line endpoints: extend one segment past MIN/MAX (arrows at extended ends)
-	const arrowSize = 8;
+	const arrowSize = 10;
+	const arrowHeight = 7;
 	const xMin = valueToX(EXTENDED_MIN);
 	const xMax = valueToX(EXTENDED_MAX);
 	const yMin = valueToY(EXTENDED_MIN);
@@ -372,68 +369,67 @@ const ParabolaGraphing = () => {
 				border: '1px solid #ccc',
 				borderRadius: 4,
 				overflow: 'hidden',
-				backgroundColor: '#fafafa',
+				backgroundColor: '#fff',
 				cursor: 'crosshair',
+				userSelect: 'none',
+				WebkitUserSelect: 'none',
+				MozUserSelect: 'none',
+				msUserSelect: 'none',
 			}}
 		>
 			{/* Undo, Redo, Reset — same layout as TwoPointDrawing */}
 			<div
-				style={{
-					position: 'absolute',
-					top: 11,
-					right: 12,
-					display: 'flex',
-					gap: 6,
-					alignItems: 'center',
-					zIndex: 1,
-				}}
+				className={`segmented-glow-button simple-glow compact${!showGlow ? ' hide-orbit' : ''}`}
+				style={{ position: 'absolute', top: 11, right: 12, zIndex: 1 }}
 			>
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						setHistoryIndex((i) => Math.max(0, i - 1));
-						// If we undid the second point of the animating parabola, cancel animation
-						if (animatingParabolaIndex !== null && historyIndex === 2 * (animatingParabolaIndex + 1)) {
-							setAnimatingParabolaIndex(null);
+				<div className="segment-container">
+					<button
+						type="button"
+						className={`segment ${!canUndo ? 'inactive' : ''}`}
+						onClick={(e) => {
+							e.stopPropagation();
+							if (!canUndo) return;
+							setShowGlow(false);
+							setHistoryIndex((i) => Math.max(0, i - 1));
+							// If we undid the second point of the animating parabola, cancel animation
+							if (animatingParabolaIndex !== null && historyIndex === 2 * (animatingParabolaIndex + 1)) {
+								setAnimatingParabolaIndex(null);
+								setParabolaProgress(0);
+							}
+						}}
+						disabled={!canUndo}
+					>
+						Undo
+					</button>
+					<button
+						type="button"
+						className={`segment ${!canRedo ? 'inactive' : ''}`}
+						onClick={(e) => {
+							e.stopPropagation();
+							if (!canRedo) return;
+							setShowGlow(false);
+							setHistoryIndex((i) => Math.min(pointsHistory.length, i + 1));
+						}}
+						disabled={!canRedo}
+					>
+						Redo
+					</button>
+					<button
+						type="button"
+						className={`segment ${!canReset ? 'inactive' : ''}`}
+						onClick={(e) => {
+							e.stopPropagation();
+							if (canReset) setShowGlow(false);
+							setPointsHistory([]);
+							setHistoryIndex(0);
 							setParabolaProgress(0);
-						}
-					}}
-					disabled={!canUndo}
-					style={buttonStyle(canUndo)}
-				>
-					Undo
-				</button>
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						setHistoryIndex((i) => Math.min(pointsHistory.length, i + 1));
-					}}
-					disabled={!canRedo}
-					style={buttonStyle(canRedo)}
-				>
-					Redo
-				</button>
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						setPointsHistory([]);
-						setHistoryIndex(0);
-						setParabolaProgress(0);
-						setAnimatingParabolaIndex(null);
-					}}
-					disabled={!canReset}
-					style={{
-						...buttonStyle(canReset),
-						backgroundColor: '#e34242',
-						borderRadius: 6,
-						border: 'none',
-					}}
-				>
-					Reset
-				</button>
+							setAnimatingParabolaIndex(null);
+						}}
+						disabled={!canReset}
+					>
+						Reset
+					</button>
+				</div>
 			</div>
 			<svg width={WIDTH} height={HEIGHT} style={{ display: 'block', pointerEvents: 'none' }}>
 				<defs>
@@ -447,8 +443,8 @@ const ParabolaGraphing = () => {
 					>
 						<path
 							d={`M 0 0 L 0 ${GRID_CELL} M 0 0 L ${GRID_CELL} 0 M ${GRID_CELL} 0 L ${GRID_CELL} ${GRID_CELL} M 0 ${GRID_CELL} L ${GRID_CELL} ${GRID_CELL}`}
-							stroke="#e0e0e0"
-							strokeWidth="0.5"
+							stroke="#e6e6e6"
+							strokeWidth="1"
 							fill="none"
 						/>
 					</pattern>
@@ -463,7 +459,7 @@ const ParabolaGraphing = () => {
 					y1={centerY}
 					x2={xAxisRight}
 					y2={centerY}
-					stroke="#333"
+					stroke="#999999"
 					strokeWidth={2}
 				/>
 				{/* Y axis */}
@@ -472,9 +468,35 @@ const ParabolaGraphing = () => {
 					y1={yAxisTop}
 					x2={centerX}
 					y2={yAxisBottom}
-					stroke="#333"
+					stroke="#999999"
 					strokeWidth={2}
 				/>
+				{/* Axis labels */}
+				<text
+					x={valueToX(10)}
+					y={centerY - 12}
+					textAnchor="middle"
+					fontSize="14px"
+					fontWeight="bold"
+					fontStyle="italic"
+					fill="#999999"
+					fontFamily="'Latin Modern Roman CK12', 'Latin Modern Roman', serif"
+				>
+					x-axis
+				</text>
+				<text
+					x={centerX + 14}
+					y={yMax + 5}
+					textAnchor="start"
+					dominantBaseline="middle"
+					fontSize="14px"
+					fontWeight="bold"
+					fontStyle="italic"
+					fill="#999999"
+					fontFamily="'Latin Modern Roman CK12', 'Latin Modern Roman', serif"
+				>
+					y-axis
+				</text>
 				{/* X axis ticks and labels */}
 				{tickValues.map((value) => {
 					const x = valueToX(value);
@@ -485,7 +507,7 @@ const ParabolaGraphing = () => {
 								y1={centerY}
 								x2={x}
 								y2={centerY + 10}
-								stroke="#333"
+								stroke="#999999"
 								strokeWidth={1.5}
 							/>
 							{value !== 0 && (
@@ -493,9 +515,10 @@ const ParabolaGraphing = () => {
 									x={x}
 									y={centerY + 26}
 									textAnchor="middle"
-									fontSize={14}
-									fill="#333"
-									fontFamily="system-ui, sans-serif"
+									fontSize="14px"
+									fontWeight="bold"
+									fill="#999999"
+									fontFamily="'Latin Modern Roman CK12', 'Latin Modern Roman', serif"
 								>
 									{value}
 								</text>
@@ -513,7 +536,7 @@ const ParabolaGraphing = () => {
 								y1={y}
 								x2={centerX - 10}
 								y2={y}
-								stroke="#333"
+								stroke="#999999"
 								strokeWidth={1.5}
 							/>
 							{value !== 0 && (
@@ -521,9 +544,10 @@ const ParabolaGraphing = () => {
 									x={centerX - 14}
 									y={y + 5}
 									textAnchor="end"
-									fontSize={14}
-									fill="#333"
-									fontFamily="system-ui, sans-serif"
+									fontSize="14px"
+									fontWeight="bold"
+									fill="#999999"
+									fontFamily="'Latin Modern Roman CK12', 'Latin Modern Roman', serif"
 								>
 									{value}
 								</text>
@@ -533,20 +557,20 @@ const ParabolaGraphing = () => {
 				})}
 				{/* Arrows at all 4 ends: right (+x), left (-x), top (+y), bottom (-y) */}
 				<polygon
-					points={`${xMax - arrowSize},${centerY - arrowSize} ${xMax},${centerY} ${xMax - arrowSize},${centerY + arrowSize}`}
-					fill="#333"
+					points={`${xMax - arrowSize},${centerY - arrowHeight} ${xMax},${centerY} ${xMax - arrowSize},${centerY + arrowHeight}`}
+					fill="#999999"
 				/>
 				<polygon
-					points={`${xMin + arrowSize},${centerY - arrowSize} ${xMin},${centerY} ${xMin + arrowSize},${centerY + arrowSize}`}
-					fill="#333"
+					points={`${xMin + arrowSize},${centerY - arrowHeight} ${xMin},${centerY} ${xMin + arrowSize},${centerY + arrowHeight}`}
+					fill="#999999"
 				/>
 				<polygon
-					points={`${centerX - arrowSize},${yMax + arrowSize} ${centerX},${yMax} ${centerX + arrowSize},${yMax + arrowSize}`}
-					fill="#333"
+					points={`${centerX - arrowHeight},${yMax + arrowSize} ${centerX},${yMax} ${centerX + arrowHeight},${yMax + arrowSize}`}
+					fill="#999999"
 				/>
 				<polygon
-					points={`${centerX - arrowSize},${yMin - arrowSize} ${centerX},${yMin} ${centerX + arrowSize},${yMin - arrowSize}`}
-					fill="#333"
+					points={`${centerX - arrowHeight},${yMin - arrowSize} ${centerX},${yMin} ${centerX + arrowHeight},${yMin - arrowSize}`}
+					fill="#999999"
 				/>
 				{/* Visible parabolas (full, not animating) with their vertex and second point */}
 				{visibleParabolasFull.map(({ h, k, a, vertex, secondPoint }, idx) => {
@@ -605,7 +629,7 @@ const ParabolaGraphing = () => {
 									cx={valueToX(secondPoint.x)}
 									cy={valueToY(secondPoint.y)}
 									r={POINT_RADIUS}
-									fill="#d32f2f"
+									fill="#1967d2"
 									stroke="#fff"
 									strokeWidth={2}
 								/>
@@ -713,7 +737,7 @@ const ParabolaGraphing = () => {
 							cx={valueToX(p.x)}
 							cy={valueToY(p.y)}
 							r={POINT_RADIUS}
-							fill={pointIndex % 2 === 0 ? '#1967d2' : '#d32f2f'}
+							fill="#1967d2"
 							stroke="#fff"
 							strokeWidth={2}
 						/>
